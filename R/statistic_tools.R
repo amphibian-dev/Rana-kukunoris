@@ -1,3 +1,23 @@
+
+library(lubridate)
+library(magrittr)
+library(dplyr)
+library(randomForest)
+library(pROC)
+library(car)
+library(ROCR)
+library(smbinning)
+# function: bmp, dev.off
+library(discretization)
+# function: chiSq
+library(glmnet)
+# function: cv.glmnet, coef.glmnet
+library(doMC)
+# function: registerDoMC
+registerDoMC(cores=4)
+# fucntion: ks_stat, ks_plot
+library(InformationValue)
+
 ########ks_计算##########################    v4版本加入
 #input：必须含有 target（双值型 0 1），以及预测值 pre
 #逻辑： 按照pre从小到大分20组，计算每组好坏样本数，以及累计好坏数，累计好坏比，计算diff
@@ -60,7 +80,7 @@ edd.default <-function(object, ..., digits = max(3, getOption("digits") - 3))
     return(edd.factor(object, ...))
   else if(is.matrix(object))
     return(edd.matrix(object, digits = digits, ...))
-  
+
   value <- if(is.logical(object))# scalar or array!
     c("nobs"=length(object),"nmiss"=sum(is.na(object)),"nunique"=length(unique(object)),c(rep(NA,10)))
   else if(is.numeric(object)) {
@@ -71,7 +91,7 @@ edd.default <-function(object, ..., digits = max(3, getOption("digits") - 3))
     qq <- signif(c(mean(object), qq[1L:9L]), digits)
     names(qq) <- c("mean_or_top1","min_or_top2","p1_or_top3","p5_or_top4","p25_or_top5","median_or_bot5","p75_or_bot4","p95_or_bot3","p99_or_bot2","max_or_bot1")
     c("nobs"=nobs,"nmiss"=sum(nas),"nunique"=length(unique(object)),qq)
-  } 
+  }
   #class(value) <- c("eddDefault", "table")
   return(t(data.frame(value)))
 }
@@ -83,15 +103,15 @@ edd.factor <- function(object, maxsum = 100, ...)
   ll <- levels(object)
   if(any(nas)) maxsum <- maxsum - 1
   tbl <- table(object[!nas])
-  tt <- c(tbl) 
+  tt <- c(tbl)
   names(tt) <- dimnames(tbl)[[1L]]
   o <- sort(tt, decreasing = TRUE)
   b <- paste(names(o),o,sep="::")
-  
+
   qq<-c(rep(NA,10))
   qq[1:(min(5,length(b)))] <- b[1:(min(5,length(b)))]
   qq[(11-(min(5,length(b)))):10] <- b[(length(b)+1-(min(5,length(b)))):length(b)]
-  
+
   names(qq) <- c("mean_or_top1","min_or_top2","p1_or_top3","p5_or_top4","p25_or_top5","median_or_bot5","p75_or_bot4","p95_or_bot3","p99_or_bot2","max_or_bot1")
   value <- c("nobs"=nobs,"nmiss"=sum(nas),"nunique"=length(ll),qq)
   p <- t(data.frame(value))
@@ -108,7 +128,7 @@ edd.matrix <- function(object, ...) {
 edd.data.frame <-
   function(object, maxsum = 7, digits = max(3, getOption("digits") - 3), ...)
   {
-    
+
     # compute results to full precision.
     #z <- t(data.frame(apply(X = object, 2,FUN = edd, maxsum = maxsum, digits = 12, ...)))
     zz <- lapply(X = as.list(object),FUN = edd, maxsum = maxsum, digits = 12)
@@ -119,7 +139,7 @@ edd.data.frame <-
     typenm<-numind
     typenm[numind]<-"numeric"
     typenm[!numind]<-"character"
-    return(data.frame(cbind(typenm,z)))	
+    return(data.frame(cbind(typenm,z)))
   }
 
 #########################################################################
@@ -130,7 +150,7 @@ edd.data.frame <-
 #########################################################################
 # Chi Merge
 #########################################################################
-value_new <-function (data, alpha,binum) 
+value_new <-function (data, alpha,binum)
 {
   i <- 1
   p1 <- 2
@@ -141,7 +161,7 @@ value_new <-function (data, alpha,binum)
   threshold <- qchisq(1 - alpha, class - 1)
   cuts <- numeric()
   z <- sort(unique(data[, i]))
-  if (length(z) <= 1) 
+  if (length(z) <= 1)
     return(list(cuts = "", disc = discredata))
   if (length(z) <= binum){
     dff <- diff(z)/2
@@ -163,7 +183,7 @@ value_new <-function (data, alpha,binum)
   pop_cut <- sum(b)/20
   repeat {
     m <- dim(b)[1]
-    if (length(dim(b)) < 2 || m < 2) 
+    if (length(dim(b)) < 2 || m < 2)
       break
     test <- numeric()
     for (k in 1:(m - 1)) {
@@ -171,17 +191,17 @@ value_new <-function (data, alpha,binum)
       test[k] = chiSq(d)
     }
     k <- which.min(test)
-    if (test[k] > threshold && m < 6) 
+    if (test[k] > threshold && m < 6)
       break
     b[k + 1, ] <- b[k, ] + b[k + 1, ]
     cutpoint <- cutpoint[-k]
     midpoint <- midpoint[-(k + 1)]
     b <- b[-k, ]
   }
-  
+
   repeat {
     m <- dim(b)[1]
-    if (length(dim(b)) < 2 || m < 2) 
+    if (length(dim(b)) < 2 || m < 2)
       break
     test <- numeric()
     for (k in 1:(m - 1)) {
@@ -190,24 +210,24 @@ value_new <-function (data, alpha,binum)
     }
     pop_r <- rowSums(b)
     k <- which.min(pop_r)
-    if (pop_r[k] > pop_cut) 
-      break	
+    if (pop_r[k] > pop_cut)
+      break
     if (k==m){
       k = k-1
     }else{
       if (k>1){
         if (test[k]>test[k-1]){
-          k = k-1		  
+          k = k-1
         }
       }
     }
-    
+
     b[k + 1, ] <- b[k, ] + b[k + 1, ]
     cutpoint <- cutpoint[-k]
     midpoint <- midpoint[-(k + 1)]
     b <- b[-k, ]
   }
-  
+
   cuts <- cutpoint
   discredata[, i] <- cut(data[, i], breaks = midpoint, include.lowest = TRUE,label=FALSE)
   discredata[which(is.na(discredata[, i])), i] <- length(midpoint)
@@ -219,13 +239,13 @@ value_new <-function (data, alpha,binum)
   return(list(cuts = cutp, mids=midpoint,disc = discredata))
 }
 
-chiM_C<-function (data, alpha = 0.05, binum = 10000) 
+chiM_C<-function (data, alpha = 0.05, binum = 10000)
 {
   mc <- getOption("mc.cores", 8)
   p <- dim(data)[2]
   discredata <- data
   cutp <- list()
-  
+
   chiM_out <- mclapply(1:(p-1), function(x){return(value_new(data[,c(x,p)], alpha,binum))}, mc.cores = mc)
   cutp<-lapply(c(1:(p-1)),function(x){return(chiM_out[[x]]$cuts)})
   discredata<-do.call('cbind',lapply(c(1:(p-1)),function(x){return(chiM_out[[x]]$disc[[1]])}))
@@ -245,7 +265,7 @@ computewoes <- function(x, y, adj){
   if(! is.factor(x)) x <- as.factor(x)
   if(! is.factor(y)) y <- as.factor(y)
   if(sum(table(x,y)==0) > 0) warning("At least one empty cell (class x level) does exist")
-  # class wise event rates 
+  # class wise event rates
   xtab <- table(y, x)
   # correction for empty class levels
   xtab[which(xtab == 0)] <- xtab[which(xtab == 0)] + adj
@@ -253,25 +273,25 @@ computewoes <- function(x, y, adj){
   # compute woes for alle classes
   fxgegy <- xtab
   fy  <- rowSums(fxgegy)
-  for(i in 1:2) fxgegy[i,] <- fxgegy[i,] / fy[i] 
+  for(i in 1:2) fxgegy[i,] <- fxgegy[i,] / fy[i]
   woes <- log(fxgegy[1,]/fxgegy[2,])
   if(any(fxgegy[2,] == 0)) warning("Empty cells result in infinite woes, zeroadj should be specified > 0!")
-  
-  # add IV 
+
+  # add IV
   # difference of class wise relative frequencies
   bdiff <- fxgegy[1,] - fxgegy[2,]
   # calculate information value
   IV <- sum(bdiff * woes)
   out <- c(woes,IV)
   return(out)
-  
+
   #print(woes)
 }
 
 computepop <- function(x, y, adj){
   if(! is.factor(x)) x <- as.factor(x)
   return(table(x))
-  
+
   #print(woes)
 }
 
@@ -280,7 +300,7 @@ computetar <- function(x, y, adj){
   if(! is.factor(x)) x <- as.factor(x)
   if(! is.factor(y)) y <- as.factor(y)
   return(table(y,x)[1,])
-  
+
   #print(woes)
 }
 
@@ -288,19 +308,19 @@ computetar <- function(x, y, adj){
 # WOE Calculation
 #########################################################################
 woe_gen <- function(x, grouping, zeroadj = 0){
-  
+
   x.woes <- lapply(x, computewoes, y = grouping, adj = zeroadj)
   x.pop <- lapply(x, computepop, y = grouping, adj = zeroadj)
   # add target count
   x.tar <- lapply(x, computetar, y = grouping, adj = zeroadj)
-  
+
   # separate woes and IVs
   IVs <-  sapply(x.woes, function(x) return(x[length(x)]))
   x.woes <- lapply(x.woes, function(x) return(x[-length(x)]))
-  #x.pop <- lapply(x.woes, function(x) return(x$pop[:]))  
+  #x.pop <- lapply(x.woes, function(x) return(x$pop[:]))
   res <- list("woe" = x.woes, "IV" = IVs, "Pop"=x.pop, "Tar"=x.tar)
   class(res) <- "woe"
-  
+
   return(res)
 }
 
@@ -312,9 +332,9 @@ IV_Calc <- function(dataset,tgt,sig,scoring="N"){
   if (sum(num_ind)>0) {
     ds <- dataset[c(sig[num_ind],tgt)]
     ds[,tgt] <- factor(ds[,tgt])
-    temp <- chiM_C(ds,alpha=0.1,100)  
+    temp <- chiM_C(ds,alpha=0.1,100)
     disc <- temp$Disc.data
-    print("chi-merge ready")	
+    print("chi-merge ready")
     if (sum(!num_ind)>0){
       disc <- cbind(dataset[sig[!num_ind]],disc)
       print("Done")
@@ -323,10 +343,10 @@ IV_Calc <- function(dataset,tgt,sig,scoring="N"){
     disc <- dataset[c(sig,tgt)]
   }
   #disc <- data.frame(sapply(disc,factor))
-  
+
   woe_model <- woe_gen(disc[,sig],disc[,tgt],0.5)
   print("WOE Calculation Done")
-  
+
   woe_calc <-function(pred){
     woe_value <- woe_model$woe[[pred]]
     pop_count <- woe_model$Pop[[pred]]
@@ -336,23 +356,23 @@ IV_Calc <- function(dataset,tgt,sig,scoring="N"){
     # add tar
     woe_out <- cbind(woe_out,tar_count)
     woe_out$Var_Name <- pred
-    
+
     if(pred%in%sig[num_ind]){
       bin_cat=c("",temp$cutp[[which(sig[num_ind]==pred)]],"","")
-      woe_out$Bin <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",bin_cat[as.integer(i)],",",bin_cat[as.integer(i)+1],"]")))	  
-      woe_out$Bin_Show <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",round(as.numeric(bin_cat[as.integer(i)]),2),",",round(as.numeric(bin_cat[as.integer(i)+1]),2),"]")))	  
+      woe_out$Bin <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",bin_cat[as.integer(i)],",",bin_cat[as.integer(i)+1],"]")))
+      woe_out$Bin_Show <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",round(as.numeric(bin_cat[as.integer(i)]),2),",",round(as.numeric(bin_cat[as.integer(i)+1]),2),"]")))
     }else {
       woe_out$Bin <- rownames(woe_out)
       woe_out$Bin_Show <- rownames(woe_out)
     }
-    
-    rownames(woe_out) <- NULL 
+
+    rownames(woe_out) <- NULL
     return(woe_out)
-  }	
-  
+  }
+
   mc <- getOption("mc.cores", 8)
   woe_mst <- do.call("rbind",mclapply(names(woe_model$woe), woe_calc, mc.cores = mc))
-  
+
   if (scoring=="Y"){
     for (var in sig){
       disc[,paste(var,"_WOE",sep="")] <- as.vector(woe_model$woe[[var]][disc[,var]])
@@ -378,13 +398,13 @@ uni.cond.entropy <- function(class, attr) {
 }
 
 
-# A function that takes a probability distribution vector as input 
+# A function that takes a probability distribution vector as input
 #   and produce the entropy value of that distribution
 # Note: Assume 0lg0 = 0 to make the algorithm work
-entropy <- function(dist) {  
+entropy <- function(dist) {
   # Verify that none of the probabilities is negative
   if (sum(dist < 0) > 0) stop("Invalid probability distribution: Negative value")
-  
+
   # Verify that sum of probabilities in the input distribution is 1
   if (sum(dist) != 1) {
     print(dist)
@@ -392,10 +412,10 @@ entropy <- function(dist) {
   }
   # Compute a vector of entropy components
   ent.comps <- -dist * log2(dist)
-  
+
   # Exemption: 0lg0 = 0
   ent.comps[is.nan(ent.comps)] <- 0
-  
+
   # Output sum of vector elements as the result
   sum(ent.comps)
 }
@@ -427,16 +447,16 @@ classifyInstance<-function(obs, tree, sig_L, sig_R){
     #print(node$type)
     #print(node$cutoff)
     if(node$type != "leaf"){
-      
+
       if(obs[[node$split_var]]<=node$cutoff){
         #print("Left")
         cut_l[[node$split_var]][2] <- node$cutoff
         node = node$branch[[1]]
-        
+
       }else{
         #print("Right")
         cut_l[[node$split_var]][1] <- node$cutoff
-        node = node$branch[[2]]	    
+        node = node$branch[[2]]
       }
       #print(cut_l)
     }else{
@@ -447,7 +467,7 @@ classifyInstance<-function(obs, tree, sig_L, sig_R){
       answer <- paste(paste("(",cut_l[[sig_L]][1],",",cut_l[[sig_L]][2],"]",sep=""),paste("(",cut_l[[sig_R]][1],",",cut_l[[sig_R]][2],"]",sep=""),sep="|")
     }
   }
-  
+
   return(answer)
 }
 #########################################################################
@@ -460,19 +480,19 @@ Disc_2D_Rec <- function(dataset,tgt,sig_L,sig_R,cutp_L,cutp_R,num_limit,depth=0)
   classes = length(unique(dataset[[tgt]]))
   ifelse(length(cutp_L)==0,INFO_L <- list(max_gain=-10,indx=1),INFO_L <- Sp_INFO(dataset,tgt,sig_L,cutp_L))
   ifelse(length(cutp_R)==0,INFO_R <- list(max_gain=-10,indx=1),INFO_R <- Sp_INFO(dataset,tgt,sig_R,cutp_R))
-  if(nrow(dataset)<num_limit || classes==1 || (length(cutp_L)==0 && length(cutp_R)==0) || max(INFO_L$max_gain,INFO_R$max_gain) < 1e-3||depth>3){ 
+  if(nrow(dataset)<num_limit || classes==1 || (length(cutp_L)==0 && length(cutp_R)==0) || max(INFO_L$max_gain,INFO_R$max_gain) < 1e-3||depth>3){
     return(root)
     #print("OK")
   }
-  
+
   #main algorithm
-  
+
   if(INFO_L$max_gain>INFO_R$max_gain){
     index <- which(dataset[[sig_L]]<=cutp_L[INFO_L$indx])
     if(length(index)<num_limit||(nrow(dataset)-length(index))<num_limit){
       return(root)
     }
-    root$type="node"	
+    root$type="node"
     root$branch = list()
     root$split_var <- sig_L
     root$cutoff <- cutp_L[INFO_L$indx]
@@ -483,7 +503,7 @@ Disc_2D_Rec <- function(dataset,tgt,sig_L,sig_R,cutp_L,cutp_R,num_limit,depth=0)
     if(length(index)<num_limit||(nrow(dataset)-length(index))<num_limit){
       return(root)
     }
-    root$type="node"	
+    root$type="node"
     root$branch = list()
     root$split_var <- sig_R
     root$cutoff <- cutp_R[INFO_R$indx]
@@ -498,12 +518,12 @@ Disc_2D <- function(dataset,tgt,sig_L,sig_R,binum = 100){
     cutp_L <- sort(unique(dataset[,sig_L]))
   }else{
     cutp_L <- sort(unique(c(min(dataset[,sig_L]),quantile(dataset[,sig_L],c(1:binum)/binum,na.rm=TRUE))))
-  }  
+  }
   cutp_L <- cutp_L[-c(1,length(cutp_L))]
-  
+
   if (length(unique(dataset[,sig_R]))<=binum){
     cutp_R <- sort(unique(dataset[,sig_R]))
-  }else{  
+  }else{
     cutp_R <- sort(unique(c(min(dataset[,sig_R]),quantile(dataset[,sig_R],c(1:binum)/binum,na.rm=TRUE))))
   }
   cutp_R <- cutp_R[-c(1,length(cutp_R))]
@@ -527,7 +547,7 @@ IV_Calc_2D <- function(dataset,tgt,sig_L,sig_R){
     }
   }
   #disc <- data.frame(sapply(disc,factor))
-  
+
   woe_model <- woe_gen(Disc_Mst,dataset[,tgt],0.5)
   print("WOE Calculation Done")
   woe_mst <- NULL
@@ -535,12 +555,12 @@ IV_Calc_2D <- function(dataset,tgt,sig_L,sig_R){
     woe_value <- woe_model$woe[[pred]]
     pop_count <- woe_model$Pop[[pred]]
     woe_out <- data.frame(cbind(woe_value,pop_count))
-    woe_out$Var_Name <- pred	
+    woe_out$Var_Name <- pred
     woe_out$Bin <- rownames(woe_out)
-    rownames(woe_out) <- NULL  
+    rownames(woe_out) <- NULL
     ifelse(is.null(woe_mst),woe_mst <- woe_out,woe_mst <- rbind(woe_mst,woe_out))
-  }	
-  
+  }
+
   return(list("DT"=Disc_Mst, "IV"=woe_model$IV, "WOE"=woe_mst, "Tree_Mst"=Tree_Mst))
   #return(list("IV"=woe_model$IV, "WOE"=woe_mst))
 }
@@ -552,7 +572,7 @@ normalize <- function(dataset,append_these = names(dataset)[grep("^Signal_",name
   for (var in append_these){
     dataset[,var]=as.numeric(dataset[,var])
     print(var)
-    
+
     print(mean(dataset[,var],na.rm=TRUE))
     a=ifelse(mean(dataset[,var],na.rm=TRUE)==0,1,mean(dataset[,var],na.rm=TRUE))
     dataset[,var]=(dataset[,var]-a)/sd(dataset[,var],na.rm=TRUE)
@@ -564,14 +584,14 @@ normalize <- function(dataset,append_these = names(dataset)[grep("^Signal_",name
 # Cluster Assignment
 #########################################################################
 km.predict = function(km, newdata){
-  nclusters = nrow(km$centers) 
+  nclusters = nrow(km$centers)
   distance = matrix(0, nrow(newdata), nclusters)
   for( k in 1:nclusters ) {
     sqdist = ( t(newdata)-km$centers[k,] )**2
     distance[,k] = apply(sqdist,2,sum)
   }
   list(clusters=apply(distance, 1, which.min))
-} 
+}
 
 #########################################################################
 # GMM Scoring
@@ -579,7 +599,7 @@ km.predict = function(km, newdata){
 gmm.predict = function(gmm, newdata){
   es<-estep(modelName="VVV",data=newdata,parameters=gmm)
   list(clusters=apply(es$z, 1, which.max))
-} 
+}
 
 #########################################################################
 # Outlier Treatment
@@ -602,7 +622,7 @@ out_treat <- function(dataset,append_these = names(dataset)[grep("^Signal_",name
     }
     dataset[,var][dataset[,var] < LB] <- LB
     dataset[,var][dataset[,var] > UB] <- UB
-    
+
   }
   if (bound==FALSE){
     bound <- bound_new
@@ -657,7 +677,7 @@ comb_loop <- function(cad_list,num){
   }else{
     comb_lst <- comb_loop(cad_list,num-1)
     return(c(outer(cad_list,comb_lst,FUN=paste,sep=",")))
-  }  
+  }
 }
 
 #########################################################################
@@ -670,7 +690,7 @@ comb_loop_t <- function(num_list){
   }else{
     comb_lst <- comb_loop_t(num_list[-1])
     return(c(outer(x,comb_lst,FUN=paste,sep=",")))
-  }  
+  }
 }
 #########################################################################
 # Cell Level Profiling
@@ -739,7 +759,7 @@ LRT <- function(dataset,tgt="tgt",sig_c,out_f=out_f){
   R1 <- cov(dataset[which(dataset[tgt]=="0"),sig_c])
   R2 <- cov(dataset[which(dataset[tgt]=="1"),sig_c])
   P2 <- mean(as.numeric(dataset[[tgt]]))
-  P1 <- 1-P2 
+  P1 <- 1-P2
   print(P1)
   save(sig_c,P1,P2,mu1,mu2,R1,R2,file=out_f)
 }
@@ -755,20 +775,20 @@ p_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst",IV
   train <- c(sample(which(dataset[tgt]=="0"),round(length(which(dataset[tgt]=="0"))*0.7)),sample(which(dataset[tgt]=="1"),round(length(which(dataset[tgt]=="1"))*0.7)))
   dataset$tc_ind <- "Test"
   dataset[train,"tc_ind"] <- "Train"
-  
+
   # Build Target Label
   weight_local <- floor(max(table(dataset[[tgt]]))/table(dataset[[tgt]]))
   dataset$wt_local <- as.vector(weight_local[dataset[[tgt]]])
-  
+
   # Build WOE Variable
-  WOE_T <- IV_Calc(dataset,tgt,sig,"Y") 
-  disc_b <- WOE_T$DT   
+  WOE_T <- IV_Calc(dataset,tgt,sig,"Y")
+  disc_b <- WOE_T$DT
   temp <- cbind(dataset,disc_b[,names(disc_b)[grep("_WOE",names(disc_b))]])
   WOE_Out <- WOE_T$WOE
   WOE_Out$Target <- out_cat
   IV_Out <- data.frame(WOE_T$IV)
   names(IV_Out) <- out_cat
-  
+
   # Normalization
   sig_all <- c(sig[num_ind],names(dataset)[grep("_Log",names(dataset))],names(disc_b)[grep("_WOE",names(disc_b))])
   sig_all <- sig_all[grep("_WOE",sig_all)]
@@ -777,7 +797,7 @@ p_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst",IV
   s[is.na(s)] <- 0
   rm(disc_b)
   #rm(temp)
-  
+
   # signal select: cross valdation by IV and correlation
   corr_s <- cor(s)
   #  print("before signal select:")
@@ -793,13 +813,13 @@ p_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst",IV
   dataset[[tgt]] <- "0"
   dataset[idx,tgt] <- "1"
   cvfit = cv.glmnet(s[train,sig_all_sel],dataset[train,tgt], family = "binomial", type.measure = "class", weights=dataset[train,"wt_local"],pmax=11, alpha = 0.9)
-  
+
   # Out Parameter
   para <- coef(cvfit, s = "lambda.min")
   PARA_Out <- data.frame(as.matrix(para))
   #  print(PARA_Out)
   names(PARA_Out) <- out_cat
-  
+
   # GINI Index
   prob_mst <- predict(cvfit, newx = s[,sig_all_sel], type = "response", s = "lambda.min")
   prob_mst <- data.frame(prob_mst)
@@ -814,12 +834,12 @@ p_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst",IV
     mst_sub[indx,tgt] <- 1
     TP<-cumsum(mst_sub[[tgt]])/sum(mst_sub[[tgt]])
     FP<-cumsum(1-mst_sub[[tgt]])/sum(1-mst_sub[[tgt]])
-    print(sprintf("%s,%s,GINI Index:%0.4f\n",tc_cat,out_cat,sum((FP[2:length(FP)]-FP[1:length(FP)-1])*TP[2:length(TP)])*2-1)) 
+    print(sprintf("%s,%s,GINI Index:%0.4f\n",tc_cat,out_cat,sum((FP[2:length(FP)]-FP[1:length(FP)-1])*TP[2:length(TP)])*2-1))
     print(sprintf("%s,%s,TARGET Rate:%0.4f\n",tc_cat,out_cat,sum(mst_sub[[tgt]])/length(mst_sub[[tgt]])))
     ### KS value
     print(sprintf("%s,%s,K-S Index:%0.4f\n",tc_cat,out_cat,ks_stat(actuals=dataset[which(dataset$tc_ind==tc_cat),tgt], predictedScores=prof_mst[which(prof_mst$tc_ind==tc_cat),out_cat])))
   }
-  
+
   s_center <- attr(s,"scaled:center")
   s_scale  <- attr(s,"scaled:scale")
   save(s_center,s_scale,cvfit,file=paste("Mdl_",IV_cut,"_",out_cat,".RData",sep=""))
@@ -830,9 +850,9 @@ p_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst",IV
     var_s <- row.names(PARA_Out)[indx][-1]
     LRT(temp,tgt=tgt,sig_c=var_s,out_f="Mdl_LRT.RData")
   }
-  
-  rm(temp);rm(dataset);rm(prof_mst);gc()  
-  return(list(IV = IV_Out, WOE = WOE_Out, PARA = PARA_Out, Score = prob_mst))  
+
+  rm(temp);rm(dataset);rm(prof_mst);gc()
+  return(list(IV = IV_Out, WOE = WOE_Out, PARA = PARA_Out, Score = prob_mst))
 }
 
 
@@ -866,7 +886,7 @@ signal_sel<- function(IV_Out,corr_s,th){
               sig_sel_diff<-c(sig_sel_diff,paste(gsub(" ","",rownames(corr_s)[i]),"_WOE",sep=""))
             }
           }
-        }        
+        }
       }
       if(flag==0 | flag_iv==0){
         sig_sel<-union(sig_sel,rownames(corr_s)[i])
@@ -875,7 +895,7 @@ signal_sel<- function(IV_Out,corr_s,th){
       #print(sig_sel_diff)
       sig_sel<-setdiff(sig_sel, sig_sel_diff)
     }
-  }   
+  }
   return (sig_sel)
 }
 
@@ -888,20 +908,20 @@ lm_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst"){
   train <- c(sample(which(dataset[tgt]=="0"),round(length(which(dataset[tgt]=="0"))*0.7)),sample(which(dataset[tgt]=="1"),round(length(which(dataset[tgt]=="1"))*0.7)))
   dataset$tc_ind <- "Test"
   dataset[train,"tc_ind"] <- "Train"
-  
+
   # Build Target Label
   weight_local <- floor(max(table(dataset[[tgt]]))/table(dataset[[tgt]]))
   dataset$wt_local <- as.vector(weight_local[dataset[[tgt]]])
-  
+
   # Build WOE Variable
-  WOE_T <- IV_Calc(dataset,tgt,sig,"Y") 
-  disc_b <- WOE_T$DT   
+  WOE_T <- IV_Calc(dataset,tgt,sig,"Y")
+  disc_b <- WOE_T$DT
   temp <- cbind(dataset,disc_b[,names(disc_b)[grep("_WOE",names(disc_b))]])
   WOE_Out <- WOE_T$WOE
   WOE_Out$Target <- out_cat
   IV_Out <- data.frame(WOE_T$IV)
   names(IV_Out) <- out_cat
-  
+
   # Normalization
   sig_all <- c(sig[num_ind],names(dataset)[grep("_Log",names(dataset))],names(disc_b)[grep("_WOE",names(disc_b))])
   #  sig_all <- sig_all[grep("_WOE",sig_all)]
@@ -910,7 +930,7 @@ lm_model <- function(dataset,tgt="cnt",sig=sig_n,num_ind=num_ind,out_cat="Mst"){
   s[is.na(s)] <- 0
   rm(disc_b)
   #rm(temp)
-  
+
   # signal select: cross valdation by IV and correlation
   corr_s <- cor(s)
   print("before signal select:")
@@ -973,15 +993,15 @@ replace_woe <- function(data,woe){
     tmp_data$woe<-NA
     for(i in 1:nrow(tmp_woe)){
       if(i==1){
-        tmp_data%<>%mutate(woe=ifelse(var<=tmp_woe$end[1],tmp_woe$woe_value[1],woe)) 
+        tmp_data%<>%mutate(woe=ifelse(var<=tmp_woe$end[1],tmp_woe$woe_value[1],woe))
       }else if(!is.na(tmp_woe$start[i])){
         if (!is.na(tmp_woe$end[i])){
-          tmp_data%<>%mutate(woe=ifelse(var>tmp_woe$start[i]&var<=tmp_woe$end[i],tmp_woe$woe_value[i],woe)) 
+          tmp_data%<>%mutate(woe=ifelse(var>tmp_woe$start[i]&var<=tmp_woe$end[i],tmp_woe$woe_value[i],woe))
         }else{
-          tmp_data%<>%mutate(woe=ifelse(var>tmp_woe$start[i],tmp_woe$woe_value[i],woe)) 
+          tmp_data%<>%mutate(woe=ifelse(var>tmp_woe$start[i],tmp_woe$woe_value[i],woe))
         }
       }else if(is.na(tmp_woe$end[i])&is.na(tmp_woe$start[i])){
-        tmp_data%<>%mutate(woe=ifelse(is.na(var),tmp_woe$woe_value[nrow(tmp_woe)],woe)) 
+        tmp_data%<>%mutate(woe=ifelse(is.na(var),tmp_woe$woe_value[nrow(tmp_woe)],woe))
       }
     }
     data%<>%cbind(tmp_data%>%select(woe))

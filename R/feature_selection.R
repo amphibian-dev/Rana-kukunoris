@@ -1,3 +1,23 @@
+
+library(lubridate)
+library(magrittr)
+library(dplyr)
+library(randomForest)
+library(pROC)
+library(car)
+library(ROCR)
+library(smbinning)
+# function: bmp, dev.off
+library(discretization)
+# function: chiSq
+library(glmnet)
+# function: cv.glmnet, coef.glmnet
+library(doMC)
+# function: registerDoMC
+registerDoMC(cores=4)
+# fucntion: ks_stat, ks_plot
+library(InformationValue)
+
 ##################自动计算vif ####################################    v5版本加入
 # data中需要target
 auto_vif<-function(data){
@@ -7,7 +27,7 @@ auto_vif<-function(data){
   data[is.na(data)]<-0
   target<- data$target
   lm1<- lm(target~.,data = data)
-  
+
   after_delete<-na.omit(lm1$coefficients)
   m<-names(after_delete)[1]
   for (i in 2:length(after_delete)) {
@@ -15,10 +35,10 @@ auto_vif<-function(data){
   }
   m<-sub(" ","",m)
   col<-grep(m,names(data))
-  
+
   data<- data[,col]
   while(1){
-    
+
     lm<-lm(target~.,data)
     if(is.matrix(vif(lm))){
       tmp<-vif(lm)%>%as.data.frame()
