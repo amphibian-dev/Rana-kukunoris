@@ -1,22 +1,4 @@
 
-library(lubridate)
-library(magrittr)
-library(dplyr)
-library(randomForest)
-library(pROC)
-library(car)
-library(ROCR)
-library(smbinning)
-# function: bmp, dev.off
-library(discretization)
-# function: chiSq
-library(glmnet)
-# function: cv.glmnet, coef.glmnet
-library(doMC)
-# function: registerDoMC
-registerDoMC(cores=4)
-# fucntion: ks_stat, ks_plot
-library(InformationValue)
 
 #cross check
 cross_extraction<-function(df,vars){
@@ -25,7 +7,7 @@ cross_extraction<-function(df,vars){
 
   tmp <- ""
   for (i in 1:length(df1)) {
-   tmp <- paste( tmp,df1[,i],sep = "&")
+    tmp <- paste( tmp,df1[,i],sep = "&")
   }
 
   return(tmp)
@@ -47,9 +29,9 @@ diff_new <- function(data){
 
 
 z_extraction<-function(df,flag,charvars,numvars){
-  # df <- data
-  # charvars <- c("educationdegree")
-  # numvars <- c("mortgagesum","id")
+  #df <- data
+  #charvars <- c("city_level")
+  #numvars <- c("fundpaybasev21","id")
   #
   total <- c()
   k <- df[,charvars]%>%as.data.frame()
@@ -61,77 +43,94 @@ z_extraction<-function(df,flag,charvars,numvars){
   if(flag=="train"){
     #train——衍生 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    tmean <- c()
 
-    tmp <- nk %>%cbind(group=k[,i])
-    tmp_levels<-unique(tmp$group)
-    part_1 <- c()
-    part_2 <- c()
-    for(level in tmp_levels){
-      #level <- tmp_levels[1]
-      tmp_data<-tmp%>%filter(group==level)%>%select(-group)
-      tmp_data1 <- tmp_data%>%select(-id)
+    for(i in 1:length(k)){
+      tmean <- c()
+      tmp <- nk %>%cbind(group=k[,i])
+      tmp_levels<-unique(tmp$group)
+      part_1 <- c()
+      part_2 <- c()
+      for(level in tmp_levels){
+        #level <- tmp_levels[1]
+        tmp_data<-tmp%>%filter(group==level)%>%select(-group)
+        tmp_data1 <- tmp_data%>%select(-id)
 
-      mean <- apply(tmp_data1,2,mean,na.rm=T)
-      mean%<>%as.data.frame()
-      names(mean)[1]<-"mean"
-      mean%<>%cbind(var=row.names(mean))
-      mean%<>%mutate(fact=level)%>%mutate(group=names(k)[i])
+        mean <- apply(tmp_data1,2,mean,na.rm=T)
+        mean%<>%as.data.frame()
+        names(mean)[1]<-"mean"
+        mean%<>%cbind(var=row.names(mean))
+        mean%<>%mutate(fact=level)%>%mutate(group=names(k)[i])
 
 
-      tmp_mean <- apply(tmp_data1,2,mean_new)
-      tmp_diff <- apply(tmp_data1,2,diff_new)
+        tmp_mean <- apply(tmp_data1,2,mean_new)
+        tmp_diff <- apply(tmp_data1,2,diff_new)
 
-      if(is.null(nrow(tmp_mean))){
-        tmp_mean <- tmp_mean%>%t()
-        tmp_mean %<>%cbind(id=as.character(tmp_data$id))
-        tmp_diff <- tmp_diff%>%t()
-        tmp_diff %<>%cbind(id=as.character(tmp_data$id))
+        if(is.null(nrow(tmp_mean))){
+          tmp_mean <- tmp_mean%>%t()
+          tmp_mean %<>%cbind(id=as.character(tmp_data$id))
+          tmp_diff <- tmp_diff%>%t()
+          tmp_diff %<>%cbind(id=as.character(tmp_data$id))
 
-      }else{
-        tmp_mean%<>%cbind(id=as.character(tmp_data$id))
-        tmp_diff%<>%cbind(id=as.character(tmp_data$id))
+        }else{
+          tmp_mean%<>%cbind(id=as.character(tmp_data$id))
+          tmp_diff%<>%cbind(id=as.character(tmp_data$id))
+        }
+
+        if(is.null(part_1)){
+          tmp_mean%<>%as.data.frame()
+          tmp_diff%<>%as.data.frame()
+          part_1 <- tmp_mean
+          part_2 <- tmp_diff
+        }else{
+          part_1%<>%rbind(tmp_mean)
+          part_2%<>%rbind(tmp_diff)
+        }
+        if(is.null(tmean)){
+          tmean <- mean
+        }else{
+          tmean%<>%rbind(mean)
+        }
       }
-
-      if(is.null(part_1)){
-        tmp_mean%<>%as.data.frame()
-        tmp_diff%<>%as.data.frame()
-        part_1 <- tmp_mean
-        part_2 <- tmp_diff
+      names(part_1)[1:(length(part_1)-1)] <- paste0("P1_",names(k)[i],"_",names(part_1)[1:(length(part_1)-1)])
+      names(part_2)[1:(length(part_1)-1)] <- paste0("P2_",names(k)[i],"_",names(part_2)[1:(length(part_1)-1)])
+      if(is.null(total)){
+        total <- part_1
+        total %<>% left_join(part_2)
       }else{
-        part_1%<>%rbind(tmp_mean)
-        part_2%<>%rbind(tmp_diff)
-      }
-      if(is.null(tmean)){
-        tmean <- mean
-      }else{
-        tmean%<>%rbind(mean)
+        total%<>%left_join(part_1)
+        total%<>%left_join(part_2)
       }
     }
-    names(part_1)[1:(length(part_1)-1)] <- paste0("P1_",names(k)[i],"_",names(part_1)[1:(length(part_1)-1)])
-    names(part_2)[1:(length(part_1)-1)] <- paste0("P2_",names(k)[i],"_",names(part_2)[1:(length(part_1)-1)])
-    if(is.null(total)){
-      total <- part_1
-      total %<>% left_join(part_2)
-    }else{
-      total%<>%left_join(part_1)
-      total%<>%left_join(part_2)
-    }
-
 
     f_name<-names(total%>%select(-id))
     for(name in f_name){
       total[,name] <- as.numeric(as.character(total[,name]))
     }
 
-    write.csv(tmean,file = "tmp_z_tmean.csv",row.names = FALSE)
+    filename="tmp_z"
+    for (vec1 in charvars) {
+      filename=paste0(filename,vec1)
+    }
+    for (vec2 in numvars) {
+      filename=paste0(filename,vec2)
+    }
+    filename <- paste0(filename,"_tmean.csv")
+    write.csv(tmean,file = filename,row.names = FALSE)
   }else if(flag=="test"){
     #test——衍生 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for(i in 1:length(k)){
       #i = 1
       name <- names(k)[i]
-      tmean <- read.csv(file = "tmp_z_tmean.csv")
+      filename="tmp_z"
+      for (vec1 in charvars) {
+        filename=paste0(filename,vec1)
+      }
+      for (vec2 in numvars) {
+        filename=paste0(filename,vec2)
+      }
+      filename <- paste0(filename,"_tmean.csv")
+      tmean <- read.csv(file = filename)
       tmp_mean <- tmean%>%filter(group==name)
       tmp_data <- nk %>%cbind(group=k[,i])
 
