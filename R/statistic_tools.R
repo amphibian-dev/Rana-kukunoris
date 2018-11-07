@@ -238,6 +238,81 @@ chiM_C<-function (data, alpha = 0.05, binum = 10000)
   return(list(cutp = cutp, Disc.data = discredata))
 }
 
+chiM_C_windows<-function (data, alpha = 0.05, binum = 10000)
+{
+  mc <- getOption("mc.cores", 1)
+  p <- dim(data)[2]
+  discredata <- data
+  cutp <- list()
+
+  chiM_out <- mclapply(1:(p-1), function(x){return(value_new(data[,c(x,p)], alpha,binum))}, mc.cores = mc)
+  cutp<-lapply(c(1:(p-1)),function(x){return(chiM_out[[x]]$cuts)})
+  discredata<-do.call('cbind',lapply(c(1:(p-1)),function(x){return(chiM_out[[x]]$disc[[1]])}))
+  discredata<-data.frame(discredata)
+  names(discredata)<-names(data)[1:(p-1)]
+  discredata[names(data)[p]]<-data[,p]
+  gc()
+  return(list(cutp = cutp, Disc.data = discredata))
+}
+
+IV_Calc_windows <- function(dataset,tgt,sig,scoring="N"){
+  num_ind <- sapply(dataset[,sig],is.numeric)
+  if (sum(num_ind)>0) {
+    ds <- dataset[c(sig[num_ind],tgt)]
+    ds[,tgt] <- factor(ds[,tgt])
+    temp <- chiM_C_windows(ds,alpha=0.1,100)
+    disc <- temp$Disc.data
+    print("chi-merge ready")
+    if (sum(!num_ind)>0){
+      disc <- cbind(dataset[sig[!num_ind]],disc)
+      print("Done")
+    }
+  } else{
+    disc <- dataset[c(sig,tgt)]
+  }
+  #disc <- data.frame(sapply(disc,factor))
+
+  woe_model <- woe_gen(disc[,sig],disc[,tgt],0.5)
+  print("WOE Calculation Done")
+
+  woe_calc <-function(pred){
+    woe_value <- woe_model$woe[[pred]]
+    pop_count <- woe_model$Pop[[pred]]
+    # add tar
+    tar_count <- woe_model$Tar[[pred]]
+    woe_out <- data.frame(cbind(woe_value,pop_count))
+    # add tar
+    woe_out <- cbind(woe_out,tar_count)
+    woe_out$Var_Name <- pred
+
+    if(pred%in%sig[num_ind]){
+      bin_cat=c("",temp$cutp[[which(sig[num_ind]==pred)]],"","")
+      woe_out$Bin <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",bin_cat[as.integer(i)],",",bin_cat[as.integer(i)+1],"]")))
+      woe_out$Bin_Show <- sapply(rownames(woe_out),function(i) return(paste(sprintf("%02d",as.integer(i)),".(",round(as.numeric(bin_cat[as.integer(i)]),2),",",round(as.numeric(bin_cat[as.integer(i)+1]),2),"]")))
+    }else {
+      woe_out$Bin <- rownames(woe_out)
+      woe_out$Bin_Show <- rownames(woe_out)
+    }
+
+    rownames(woe_out) <- NULL
+    return(woe_out)
+  }
+
+  mc <- getOption("mc.cores", 1)
+  woe_mst <- do.call("rbind",mclapply(names(woe_model$woe), woe_calc, mc.cores = mc))
+
+  if (scoring=="Y"){
+    for (var in sig){
+      disc[,paste(var,"_WOE",sep="")] <- as.vector(woe_model$woe[[var]][disc[,var]])
+    }
+  }
+  gc()
+  if (scoring=="Y"){
+    return(list("DT"=disc, "IV"=woe_model$IV, "WOE"=woe_mst))
+  }else{
+    return(list("IV"=woe_model$IV, "WOE"=woe_mst))
+  }
+}
 #########################################################################
 # WOE Calculation
 #########################################################################

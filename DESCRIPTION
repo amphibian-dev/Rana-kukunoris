@@ -6,11 +6,11 @@ Version: 0.1.0
 Author: Xiyu Zhou
 Maintainer: Xiyu Zhou <chinazhouxiyu@163.com>
 Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+    modify the iv caculate windows beta
 License: MIT
 Encoding: UTF-8
 LazyData: true
-Version: 1.0
+Version: 0.2
 Date: 2018-11-2
 Depends: R (>= 3.0.1),lubridate,magrittr,dplyr,randomForest,pROC,car,ROCR,smbinning,discretization,glmnet,doMC,InformationValue
 
