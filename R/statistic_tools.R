@@ -1066,3 +1066,17 @@ replace_woe <- function(data,woe){
   }
   return(data)
 }
+
+
+#检查返回为因子型的变量
+factor_col_check<-function(data){
+  factor_col <- c()
+  for(i in 1:length(data)){
+    if(class(data[,i])=="factor")
+      factor_col[i]<- T
+    else
+      factor_col[i]<- FALSE
+  }
+
+  return (factor_col)
+}
