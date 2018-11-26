@@ -123,3 +123,30 @@ bin_row_factor<- function (df, factors, Total_bad, Total_Good)
   #df2 %<>% mutate(id = as.numeric(row.names(df2)))
   return(df2)
 }
+
+
+#连续型变量转离散型 dataframe,quantile的边界值，是否删除原连续变量
+num_transfer <- function(df, arr = c(seq(0,1,0.2),0.01,0.99),delete_source=T){
+  arr <- arr[order(arr)]
+  #df<- data
+  for (tmpname in names(df)[!factor_col_check(df)]){
+    tmplimit<- quantile(df[,tmpname],arr,na.rm = T)
+    df$tmp <- findInterval(df[,tmpname],tmplimit)
+
+    tmp_interval<-c()
+    for (i in 1:(length(tmplimit)-1)) {
+      tmp_interval[i] <- paste0(i,".","[",tmplimit[i],",",tmplimit[i+1],")")
+    }
+    tmp <-c(1:(length(tmplimit)-1))
+    tmparr <- data_frame(tmp,tmp_interval)
+
+    df%<>%left_join(tmparr)%>%select(-tmp)
+
+    names(df)[length(df)] <- paste0(tmpname,"_interval")
+  }
+
+  if(delete_source==T){
+    df <- df[,c(names(df)[col_check(df,"factor")],names(df)[col_check(df,"character")])]
+  }
+  return(df)
+}

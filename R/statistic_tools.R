@@ -1080,3 +1080,15 @@ factor_col_check<-function(data){
 
   return (factor_col)
 }
+
+col_check<-function(data,string){
+  factor_col <- c()
+  for(i in 1:length(data)){
+    if(class(data[,i])==string)
+      factor_col[i]<- T
+    else
+      factor_col[i]<- FALSE
+  }
+
+  return (factor_col)
+}

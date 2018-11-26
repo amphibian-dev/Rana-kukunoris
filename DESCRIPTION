@@ -2,12 +2,12 @@ Package: ranakuku
 Type: Package
 Title: credit scorecard Modeling tools (Title Case)
 LazyLoad: yes
-Version: 0.1.2
+Version: 0.1.3
 Author: Xiyu Zhou
 Maintainer: Xiyu Zhou <chinazhouxiyu@163.com>
-Description: More about what it does 
-    modify the iv caculate windows beta
-    add manual bin factor and numeric 
+Description: 
+    col_check: check column structure and return bool value
+    num_transfer: transform numeric feature to character(quantile)
 License: MIT
 Encoding: UTF-8
 LazyData: true
