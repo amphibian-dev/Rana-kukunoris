@@ -80,49 +80,6 @@ bin_row_2 <- function(dfa,s1,s2,Total_bad,Total_Good){
   return(dfa2)
 }
 
-bin_row_factor<- function (df, factors, Total_bad, Total_Good)
-{
-
-  #factors <- c("bin2","bin4")
-  # df<- td_x183 %>% as.data.frame()
-  # factors <- c(1,3)
-  # Total_bad <- 1000
-  # Total_Good <- 10000
-
-  names(df)[1] <- "name"
-  if(class(factors)!="character"){
-    factors <- df$name[factors]
-  }
-
-
-  df %<>% mutate(id = as.numeric(row.names(df)))
-  #df %<>% select(-name)
-  #df1 <- df[s1:s2, ]
-
-  df1 <- df %>%filter(name %in% factors)
-
-  df2 <- df %>%filter(!name %in% factors)
-  df1 %<>% mutate(k = 1) %>% group_by(k) %>% summarise(fre = sum(fre),
-                                                       bad = sum(bad), good = sum(good), id = min(id)) %>% select(-k) %>% mutate(bad_rate = bad/fre,
-                                                                                                                                 woe = (log((bad/Total_bad)/(good/Total_Good), base = exp(1)))) %>%
-    mutate(iv = ((bad/Total_bad) - (good/Total_Good)) * woe)%>%as.data.frame()
-
-
-  tmp_df <- c()
-  for (i in 1:(length(factors))) {
-    if(i == 1){
-      tmp_df <- df1
-    }else{
-      tmp_df %<>%rbind(df1)
-    }
-  }
-
-
-  tmp_df$name <- factors
-  df2 %<>% rbind(tmp_df) %>% arrange(id)
-  #df2 %<>% mutate(id = as.numeric(row.names(df2)))
-  return(df2)
-}
 
 
 #连续型变量转离散型 dataframe,quantile的边界值，是否删除原连续变量
