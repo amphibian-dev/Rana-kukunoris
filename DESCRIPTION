@@ -2,16 +2,18 @@ Package: ranakuku
 Type: Package
 Title: credit scorecard Modeling tools (Title Case)
 LazyLoad: yes
-Version: 0.1.4
+Version: 0.1.5
 Author: Xiyu Zhou
 Maintainer: Xiyu Zhou <chinazhouxiyu@163.com>
 Description: 
-    yt_manaul_scorecard:function for yutong & scorecard json
+    yt_manaul_scorecard: update left.open = T,rightmost.closed = T
+    psi caculation
+    fixstep：find same interval
 License: MIT
 Encoding: UTF-8
 LazyData: true
 Date: 2018-11-27
 Depends: R (>= 3.0.1),lubridate,magrittr,dplyr,randomForest,pROC,car,ROCR,smbinning,discretization,glmnet,doMC,InformationValue,rjson
 
-    
+
 

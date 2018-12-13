@@ -150,6 +150,7 @@ yt_bin_row_factor<- function (df, factors)
 }
 
 #df:dataframe, list:woe&cuts ,flag: numeric or factor
+#update: numeric left.open = T,rightmost.closed = T
 yt_replace_woe <- function(df,list,flag){
 
   # df <- data_01_zy
@@ -158,7 +159,7 @@ yt_replace_woe <- function(df,list,flag){
     for (name in names(list)) {
       #name <- "signsum"
       x <- unique(c(list[[name]]$s,list[[name]]$e))
-      df[,name] <- findInterval(df[,name],x)
+      df[,name] <- findInterval(df[,name],x,left.open = T,rightmost.closed = T)
 
       df%<>%left_join(list[[name]][,c(5,11)])
     }

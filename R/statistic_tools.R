@@ -1092,3 +1092,28 @@ col_check<-function(data,string){
 
   return (factor_col)
 }
+
+
+# 等间隔 切割点
+fixstep <- function(x,n,limit=0.01){
+
+  tmpmax <- quantile(x,(1-limit))
+  tmpmin <- quantile(x,limit)
+  tmpstep <- (tmpmax-tmpmin)/n
+  x1 <- tmpmin+tmpstep*(1:n-1)
+  x1[1] <- -Inf
+  x1[length(x1)+1] <- Inf
+
+  return(x1)
+}
+
+# PSI caculation
+PSI <- function(df,r,b){
+  #
+  #判断：index <= 0.1，无差异；0.1< index <= 0.25，需进一步判断；
+  #0.25 <= index，有显著位移，模型需调整。
+  #(r-b)*ln(r/b)
+  df$diff = (df[,r]-df[,b])*exp(df[,r]/df[,b])
+
+  return(df)
+}
