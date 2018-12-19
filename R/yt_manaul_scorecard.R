@@ -11,7 +11,7 @@ yt_woe_iv <- function(dt,flag){
   Total_bad <- as.numeric(table(dt$target))[2]
 
   woe_list <- list()
-  if(flag=="numeric"){
+  if(flag=="numeric"|flag=="int"){
     names<-names(dt)[col_check(dt,"numeric")]
 
     for (name in names) {
@@ -155,7 +155,7 @@ yt_replace_woe <- function(df,list,flag){
 
   # df <- data_01_zy
   # list <- woe_info
-  if(flag=="numeric"){
+  if(flag=="numeric"|flag=="int"){
     for (name in names(list)) {
       #name <- "signsum"
       x <- unique(c(list[[name]]$s,list[[name]]$e))

@@ -2,13 +2,14 @@ Package: ranakuku
 Type: Package
 Title: credit scorecard Modeling tools (Title Case)
 LazyLoad: yes
-Version: 0.1.5
+Version: 0.1.6
 Author: Xiyu Zhou
 Maintainer: Xiyu Zhou <chinazhouxiyu@163.com>
 Description: 
     yt_manaul_scorecard: update left.open = T,rightmost.closed = T
     psi caculation
-    fixstep：find same interval
+    fixstep：find same interval 
+    woe and replace：add "int"
 License: MIT
 Encoding: UTF-8
 LazyData: true
