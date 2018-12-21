@@ -342,6 +342,7 @@ yt_refit_showbin <- function(df,mth=3){
   return(res)
 }
 
+
 #scorecard from (json_scorecard)
 #var <- "VAR_15"
 #numeric or int
@@ -349,6 +350,7 @@ yt_refit_showbin <- function(df,mth=3){
 #character or factor
 #cut_arr <- list(c("硕士及以上"),c("本科"),c("大专","中专/技校/高中"),c("高中以下","MISSING"))
 yt_refit_fixbin <- function(scorecard,var,cut_arr){
+  #var<-"VAR_30"
   #cut_arr <- c(8,16)
   #var <- "VAR_15"
   #cut_arr <- list(c("硕士及以上"),c("本科"),c("大专","中专/技校/高中"),c("高中以下","MISSING"))
@@ -357,7 +359,7 @@ yt_refit_fixbin <- function(scorecard,var,cut_arr){
     new_scorecard <- data_frame(varsname=var,interval=c(1:(length(cut_arr)+1)))
     new_scorecard$start <- c(-Inf,cut_arr)
     new_scorecard$end <- c(cut_arr,Inf)
-    new_scorecard$levels <- NA
+    new_scorecard$levels <- list(NULL)
     new_scorecard$vars <- NA
     new_scorecard$value <-NA
     new_scorecard$content <- paste0("[",new_scorecard$start," ~ ",new_scorecard$end,")")
@@ -377,10 +379,16 @@ yt_refit_fixbin <- function(scorecard,var,cut_arr){
       new_scorecard$content[i] <- substr(new_scorecard$content[i] ,4,nchar(new_scorecard$content[i]))
     }
   }
+  base <- nrow(old_scorecard)
+  for (i in 1:nrow(new_scorecard)) {
+    for (j in names(new_scorecard)) {
+      old_scorecard[base+i,j] = new_scorecard[i,j]
+    }
 
-  new_scorecard %<>%rbind(old_scorecard)
+  }
+  # new_scorecard %<>%rbind(old_scorecard)
 
-  return(new_scorecard)
+  return(old_scorecard)
 }
 
 #
