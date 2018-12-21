@@ -34,6 +34,20 @@ get_target_str <- function(str,x,y){
   return(as.numeric(substr(str,a+1,b-1)))
 }
 
+get_target_str1 <- function(str,x,y){
+  if(!is.numeric(x)){
+    a <- as.numeric(gregexpr(x,str)[[1]][1])
+  }else{
+    a <- x
+  }
+  if(!is.numeric(y)){
+    b <- as.numeric(gregexpr(y,str)[[1]][1])
+  }else{
+    b <- y
+  }
+
+  return(as.character(substr(str,a+1,b-1)))
+}
 
 
 
