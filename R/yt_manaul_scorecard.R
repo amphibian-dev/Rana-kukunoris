@@ -259,22 +259,25 @@ json_scorecard <- function(jsonsc){
   jsonsc1$start <- as.numeric(jsonsc1$start)
   jsonsc1$end <- as.numeric(jsonsc1$end)
 
-  jsonsc1 %<>% group_by(varsname)%>%mutate(interval=1:n())
+  jsonsc1 %<>% group_by(varsname)%>%mutate(interval=1:n())%>%ungroup()
   return(jsonsc1)
 }
 
 # using the scorecard dataframe from(json_scorecard) in dataframe
 # new_feature
 use_scorecard<- function(df,scorecard) {
+  # scorecard <- scorecard
+  # df <- df
+  #
   vars <- unique(scorecard$varsname)
 
   for (name in vars) {
-    #name <- "VAR_15"
+    #name <- "VAR_49"
     if(is.numeric(df[,name])|is.integer(df[,name])){
       tmpsc<- scorecard%>%filter(varsname==name)
       tmplimit <- unique(tmpsc$start,tmpsc$end)
       df[,"interval"]<- findInterval(df[,name],tmplimit,left.open = FALSE,rightmost.closed =FALSE )
-      df %<>%left_join(tmpsc%>%select(interval,content)) %>%select(-interval,-varsname)
+      df %<>%left_join(tmpsc%>%select(interval,content)) %>%select(-interval)
       names(df)[length(df)] <- paste0("new_",name)
     }else{
       tmpsc<- scorecard%>%filter(varsname==name)
@@ -282,7 +285,7 @@ use_scorecard<- function(df,scorecard) {
       for (i in 1:nrow(tmpsc)) {
         df %<>%mutate(interval=ifelse(df[,name] %in% tmpsc$levels[i][[1]],tmpsc$interval[i],interval))
       }
-      df %<>% left_join(tmpsc%>%select(interval,content)) %>%select(-varsname,-interval)
+      df %<>% left_join(tmpsc%>%select(interval,content)) %>%select(-interval)
       names(df)[length(df)] <- paste0("new_",name)
     }
   }
@@ -462,4 +465,57 @@ yt_refit_showdetail_num <- function(df,varsname,sonbin = 3 ,mth=3){
   #scale_fill_brewer(palette="YlOrRd")
   ggsave(paste0(varsname,"_detail.png"), dpi=300)
 
+  ggplot(tmp_group, aes(x=fix_group, y=fre, col=as.character(interval2), fill = as.character(interval2))) +
+    geom_bar(stat = "identity",colour="black")#fill=as.factor(as.character(tmp_group$interval2)))
+
+  ggsave(paste0(varsname,"_fre_detail.png"), dpi=300)
+}
+
+#df, varsname
+#df from use_scorecard , varsname use the old featurename
+yt_refit_showdetail_char <- function(df,varsname,sonbin = 3 ,mth=3){
+  # df <- data
+  # varsname <- "VAR_15"
+  #
+  #ovarname <- substr(varsname,5,nchar(varsname))
+  tmpdata <-  df[,c(varsname,"target","LOAN_MTH")]
+  tmpdata1 <-  tmpdata %>% group_by(LOAN_MTH)%>%summarise(fre=n()) %>%ungroup()%>%arrange(LOAN_MTH)
+  mth_group<- group_mth(tmpdata1%>%select(-fre),mth)
+
+  tmpdata %<>%left_join(mth_group)
+
+  tmp_group <- tmpdata %>% group_by_at(c(varsname,"fix_group")) %>% summarise(fre=n(),bad=sum(target))%>%
+    mutate(badrate=bad/fre) %>%mutate(vars = varsname)%>%ungroup()
+  names(tmp_group)[1] <- "levels"
+  tmp_group %<>%mutate(levels=as.character(levels))
+
+  # this function regenerates ggplot2 default colors
+  gg_color_hue <- function(n) {
+    hues = seq(15, 375, length = n + 1)
+    hcl(h = hues, l = 65, c = 100)[1:n]
+  }
+  #
+  color_lty_cross = expand.grid(
+    ltypes = 1:6,
+    colors = gg_color_hue(10)
+    ,stringsAsFactors = F)
+  showtext_auto(enable=T)
+  ggplot(tmp_group, aes(x=fix_group, y=badrate, col=levels, lty = levels)) +
+    geom_line() + geom_point(size=3) +theme(text = element_text(family = 'wqy-microhei'))
+  #   scale_color_manual(values = color_lty_cross$colors[1:length(unique(tmp_group$interval))]) +
+  #   scale_linetype_manual(values = color_lty_cross$ltypes[1:length(unique(tmp_group$interval))]) +
+  #   theme_bw()
+  #
+  # ggplot(tmp_group, aes(x=fix_group, y=badrate, colour=interval,group=interval))+
+  #   geom_line(size=1)+theme(text = element_text(family = 'wqy-microhei'))+geom_point(size=2)+
+  #   theme_bw()
+  #theme(legend.title=element_text(face="italic", family="Times", colour="red",size=14))
+  #scale_fill_gradientn(colours=c("blue","green","yellow","red"))
+  #scale_fill_brewer(palette="YlOrRd")
+  ggsave(paste0(varsname,"_detail.png"), dpi=300)
+
+  ggplot(tmp_group, aes(x=fix_group, y=fre, col=levels, fill = levels)) +
+    geom_bar(stat = "identity",colour="black")+theme(text = element_text(family = 'wqy-microhei'))#fill=as.factor(as.character(tmp_group$interval2)))
+
+  ggsave(paste0(varsname,"_fre_detail.png"), dpi=300)
 }
