@@ -334,6 +334,10 @@ yt_refit_showbin <- function(df,mth=3){
       theme(text = element_text(family = 'SimSun'))
     ggsave(paste0(name,".png"), dpi=300)
 
+    ggplot(tmp_group, aes(x=fix_group, y=fre, colour=levels,group=levels)) +
+      theme(text = element_text(family = 'SimSun'))+ geom_bar(stat = "identity",colour="black")
+    ggsave(paste0(name,"_fre.png"), dpi=300)
+
     if(is.null(res)){
       res <- tmp_group
     }else{
@@ -519,3 +523,39 @@ yt_refit_showdetail_char <- function(df,varsname,sonbin = 3 ,mth=3){
 
   ggsave(paste0(varsname,"_fre_detail.png"), dpi=300)
 }
+
+yt_refit_showcompare <- function(df,cutmth=201711){
+  #df <- data
+  showtext_auto(enable=T)
+  df <- df[,names(df)[grepl("new_|target|LOAN_MTH",names(df))]]
+
+  df %<>% mutate(fix_group = ifelse(LOAN_MTH <=cutmth,"train","test"))
+
+  res <- NULL
+  for (name in names(df)[grepl("new_",names(df))]) {
+    #name <- "new_VAR_15"
+    tmp_group <- df %>% group_by_at(c(name,"fix_group")) %>% summarise(fre=n(),bad=sum(target))%>%
+      mutate(badrate=bad/fre) %>%mutate(vars = name)%>%ungroup()
+    names(tmp_group)[1] <- "levels"
+
+    ggplot(tmp_group, aes(x=fix_group, y=badrate, colour=levels,group=levels))+geom_line(size=1)+
+      theme(text = element_text(family = 'SimSun'))
+    ggsave(paste0(name,"_traintest.png"), dpi=300)
+
+    if(is.null(res)){
+      res <- tmp_group
+    }else{
+      res %<>%rbind(tmp_group)
+    }
+  }
+
+
+  return(res)
+}
+
+
+
+
+
+
+
