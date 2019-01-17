@@ -12,7 +12,12 @@ yt_woe_iv <- function(dt,flag){
 
   woe_list <- list()
   if(flag=="numeric"|flag=="int"){
-    names<-names(dt)[col_check(dt,"numeric")]
+
+    if(flag=="numeric"){
+      names<-names(dt)[col_check(dt,"numeric")]
+    }else{
+      names<-names(dt)[col_check(dt,"int")]
+    }
 
     for (name in names) {
       q <- quantile(dt[,name],probs=c(1:20)*0.05)%>%as.data.frame()
@@ -334,7 +339,7 @@ yt_refit_showbin <- function(df,mth=3){
       theme(text = element_text(family = 'SimSun'))
     ggsave(paste0(name,".png"), dpi=300)
 
-    ggplot(tmp_group, aes(x=fix_group, y=fre, colour=levels,group=levels)) +
+    ggplot(tmp_group, aes(x=fix_group, y=fre, colour=levels,group=levels,fill = levels)) +
       theme(text = element_text(family = 'SimSun'))+ geom_bar(stat = "identity",colour="black")
     ggsave(paste0(name,"_fre.png"), dpi=300)
 
