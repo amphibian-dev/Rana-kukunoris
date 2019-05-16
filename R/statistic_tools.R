@@ -1,5 +1,39 @@
 
 
+vintage_func <- function(data,group_var,vars){
+  #vintage
+  #group_var = 'loan_mon'
+  #vars = c(m1,m2,m3,m4)
+
+  fre_res <- c()
+  for (var in vars) {
+    # var <- "m7"
+    # group_var <- "apply_mon"
+    tmp <- data%>%filter_at(var,any_vars(!is.na(.)))%>%group_by_at(group_var)%>%
+      summarise(fre=n())
+    names(tmp)[2] <- paste0(var,"_fre")
+    if(is.null(fre_res)){
+      fre_res <- tmp
+    }else{
+      fre_res %<>%left_join(tmp)
+    }
+  }
+  fre_res %<>%rbind( apply(fre_res,2,sum,na.rm=T))
+  fre_res$loan_mon[nrow(fre_res)] <- "total"
+
+  bad_res <- data%>%group_by_at(group_var)%>%
+    summarise_at(grep("mob",names(data)),sum,na.rm=T)
+
+  bad_res %<>%rbind( apply(bad_res,2,sum,na.rm=T))
+  bad_res$loan_mon[nrow(bad_res)] <- "total"
+
+  res <- fre_res %>% left_join(bad_res)
+
+  for (i in 1:length(vars)) {
+    res[paste0("mob_",i)] <-res[1+i+length(vars)]/res[i+1]
+  }
+  return(res)
+}
 ########ks_计算##########################    v4版本加入
 #input：必须含有 target（双值型 0 1），以及预测值 pre
 #逻辑： 按照pre从小到大分20组，计算每组好坏样本数，以及累计好坏数，累计好坏比，计算diff

@@ -1,6 +1,6 @@
 
 
-#dt = dataframe , flag
+#dt = dataframe , flag =
 yt_woe_iv <- function(dt,flag){
 
   # dt <- data %>% rename(target=target_m5)
@@ -184,12 +184,18 @@ yt_replace_woe <- function(df,list,flag){
 }
 
 #list_num,list_char
-yt_json_cuts<- function(list_num,list_char,filename){
+yt_json_cuts<- function(list_num,list_char,list_int=NULL,filename){
   # list_char <- list_char_woe
   # list_num <- list_num_woe
 
   tmp <- list()
   dif <- c(-Inf,Inf)
+  if(!is.null(list_int)){
+    for (i in names(list_int)) {
+      list_num[[i]] <- list_int[[i]]
+    }
+  }
+
 
   for (name in names(list_num)) {
     tmp[[name]] <-setdiff(unique(c(list_num[[name]]$s,list_num[[name]]$e)),dif)
